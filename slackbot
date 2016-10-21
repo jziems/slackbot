@@ -3,7 +3,7 @@
 # set -x
 
 ### BEGIN INIT INFO
-# Provides:             pythonbot
+# Provides:             slackbot
 # Required-Start:       $network $syslog $named
 # Required-Stop:        $network $syslog $named
 # Default-Start:        2 3 4 5
@@ -18,8 +18,8 @@ export LOGFILE=/var/log/$(basename $SCRIPT .sh).log
 export PIDFILE=/var/run/$(basename $SCRIPT .sh).pid
 
 function start {
-  . /home/pi/slack_pythonbot
-  /home/pi/slackbot.py
+  . /etc/slack_slackbot
+  /usr/local/bin/slackbot.py
   return $?
 }
 
