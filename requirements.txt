@@ -1,6 +1,7 @@
 slackclient
-hg+http://bitbucket.org/pygame/pygame
 dropbox
 PIL
 requests
 json
+PySDL2
+hg+http://bitbucket.org/pygame/pygame
