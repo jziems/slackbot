@@ -1,5 +1,4 @@
 slackclient
 dropbox
 requests
-simplejson
 Pillow-PIL
