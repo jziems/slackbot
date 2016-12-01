@@ -1,0 +1,6 @@
+slackclient
+pygame
+dropbox
+PIL
+requests
+json
