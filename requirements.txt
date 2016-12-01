@@ -1,5 +1,5 @@
 slackclient
-Pygame
+PyGame
 dropbox
 PIL
 requests
