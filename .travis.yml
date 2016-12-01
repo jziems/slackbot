@@ -1,6 +1,6 @@
 before_install:
   - sudo apt-get -qq update
-  - sudo apt-get install -y libsdl-dev
+  - sudo apt-get install -y libsdl-dev python-pygame
 
 language: python
 python:
