@@ -1,5 +1,4 @@
 slackclient
 dropbox
-PIL
 requests
 json
