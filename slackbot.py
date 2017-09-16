@@ -13,7 +13,7 @@ import json
 class logger:
 
   def __init__(self):
-    self.logfile="/var/log/pythonbot.log"
+    self.logfile="pythonbot.log"
     self.log=open(self.logfile, 'a')
     return None
 
@@ -144,57 +144,55 @@ def daemonize():
 
 def main(pid=None):
 
-  # logfile=os.environ.get('LOGFILE')
-  # pidfile=os.environ.get('PIDFILE')
-  pidfile="/var/run/pythonbot.pid"
+  if pid == None:
+    daemonize()
+  else:
+    with open("pythonbot.pid", 'w') as pidfile:
+      pidfile.write(str(pid))
+    log=logger()
+    log.write("Starting....")
 
-  p=open(pidfile, "w")
-  p.write(str(pid))
-  p.close()
-  log.write("Starting....")
+    READ_WEBSOCKET_DELAY = 1
+    typing=0
+    try:
+      pb = pythonbot()
+      log.write("Started.")
 
-  READ_WEBSOCKET_DELAY = 1
-  typing=0
-  try:
-    pb = pythonbot()
-    log.write("Started.")
+      log.write("Channel List:")
+      for channel in pb.list_channels():
+        log.write('\t' + channel['name'])
 
-    log.write("Channel List:")
-    for channel in pb.list_channels():
-      log.write('\t' + channel['name'])
-
-    while True:
-      msg = pb.read()
+      while True:
+        msg = pb.read()
   
-      if msg:
-        if msg[0]['type'] == 'message':
-          if not 'bot_id' in msg[0].keys() or msg[0]['bot_id'] != pb.BOT_ID:
-            if 'text' in msg[0].keys():
-              if msg[0]['text'].split(' ')[0] == '<@' + pb.BOT_ID + '>':
-                cmd=msg[0]['text'].split(' ')[1]
-              else:
-                cmd=msg[0]['text'].split(' ')[0]
-              if cmd in pb.bot_commands():
-                try:
-                  ret=eval('pb.' + cmd)(channel=msg[0]['channel'])
-                except Exception, e:
-                  log.write(str(e))
-              else:
-                log.write("Not a command: %s" % (cmd))
-        elif msg[0]['type'] == 'user_typing':
-          if typing == 3:
-            pb.post_message(channel=msg[0]['channel'], text='Shhh... <@'+msg[0]['user']+'> is typing something...')
-            typing=0
-          else:
-            typing+=1
-        elif msg[0]['type'] == 'presence_change' and msg[0]['presence'] == 'active':
-          log.write("%s is now active." % (msg[0]['user']))
+        if msg:
+          if msg[0]['type'] == 'message':
+            if not 'bot_id' in msg[0].keys() or msg[0]['bot_id'] != pb.BOT_ID:
+              if 'text' in msg[0].keys():
+                if msg[0]['text'].split(' ')[0] == '<@' + pb.BOT_ID + '>':
+                  cmd=msg[0]['text'].split(' ')[1]
+                else:
+                  cmd=msg[0]['text'].split(' ')[0]
+                if cmd in pb.bot_commands():
+                  try:
+                    ret=eval('pb.' + cmd)(channel=msg[0]['channel'])
+                  except Exception, e:
+                    log.write(str(e))
+                else:
+                  log.write("Not a command: %s" % (cmd))
+          elif msg[0]['type'] == 'user_typing':
+            if typing == 3:
+              pb.post_message(channel=msg[0]['channel'], text='Shhh... <@'+msg[0]['user']+'> is typing something...')
+              typing=0
+            else:
+              typing+=1
+          elif msg[0]['type'] == 'presence_change' and msg[0]['presence'] == 'active':
+            log.write("%s is now active." % (msg[0]['user']))
 
-      time.sleep(READ_WEBSOCKET_DELAY)
-  except Exception, e:
-    log.write(str(e))
-    pass
+        time.sleep(READ_WEBSOCKET_DELAY)
+    except Exception, e:
+      log.write(str(e))
+      pass
 
-log=logger()
-log.write("Daemonizing...")
-daemonize()
+if __name__ == 'main':
+  main()
