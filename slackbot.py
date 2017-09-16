@@ -33,7 +33,7 @@ class pythonbot:
     except Exception, e:
       raise e
     return None
-
+ 
   def bot_commands(self):
     return self._bot_commands
 
@@ -118,7 +118,7 @@ def daemonize():
     sys.stderr.write('_Fork #1 failed: {0}\n'.format(err))
     sys.exit(1)
   # decouple from parent environment
-  os.chdir('/')
+  #os.chdir('/')
   os.setsid()
   os.umask(0)
   # do second fork
@@ -194,5 +194,5 @@ def main(pid=None):
       log.write(str(e))
       pass
 
-if __name__ == 'main':
+if __name__ == '__main__':
   main()
