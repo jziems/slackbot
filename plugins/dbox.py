@@ -1,9 +1,15 @@
 import dropbox
 import os
 import json
+import logging
+import time
 
 __all__ = ['__init__', 'upload']
-__package__ = 'plugins'
+__package__ = 'slackbot.plugins'
+logger = logging.getLogger('slackbot')
+
+class MyStr(unicode):
+  binary = False
 
 def __init__():
   try:
@@ -13,12 +19,25 @@ def __init__():
       for k, v in cfg.items():
         cfg[k] = v
     return (dropbox.Dropbox(cfg['DROPBOX_TOKEN']),None,None)
-  except:
-    raise
+  except Exception as e:
+    logger.exception(e)
+    raise e
 
-def upload(dbx, filepath, remotepath=None):
+def upload(dbx=None, filepath=None, remotepath=None):
   try:
-    dbx.files_upload(open(filepath, 'rb'), remotepath, mode=dropbox.files.WriteMode.add, autorename=False, client_modified=None, mute=True)
-    return dbx.sharing_create_shared_link_with_settings(remotepath).url[0:-1]+'1'
-  except:
-    raise
+    logger.debug("Args dbx: %s filepath: %s remotepath: %s" % (dbx,filepath,remotepath))
+    if not filepath:
+      raise Exception("Need file path to upload.")
+    if remotepath:
+      with open(filepath, 'rb') as fin:
+        dbx.files_upload(fin.read(), path=remotepath, mode=dropbox.files.WriteMode.add, autorename=False, client_modified=None, mute=True)
+        resp = MyStr(dbx.sharing_create_shared_link_with_settings(remotepath).url[0:-1] + '1')
+    else:
+      remotepath = '/'+str(time.time())+'.jpg'
+      with open(filepath, 'rb') as fin:
+        dbx.files_upload(fin.read(), path=remotepath, mode=dropbox.files.WriteMode.add, autorename=False, client_modified=None, mute=True)
+      resp = MyStr(dbx.sharing_create_shared_link_with_settings(remotepath).url[0:-1]+'1')
+    return resp
+  except Exception as e:
+    logger.exception(e)
+    raise e

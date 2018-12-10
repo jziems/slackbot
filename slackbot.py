@@ -1,45 +1,92 @@
+#!/usr/bin/env python
+
 import os
+import sys
 import time
 from slackclient import SlackClient
 import json
 import logging
-import sys
-sys.path.append('plugins')
-from plugins import plugins
+import plugins
+
+__package__ = 'slackbot'
 
 class slackbot:
 
-  def __init__(self, loglevel=None):
+  def __init__(self):
     try:
       homedir = os.path.expanduser('~')
+      self.logger = logging.getLogger('slackbot')
+      self.plugins = plugins.plugins()
       with open(homedir+'/.slackbot', 'r') as fin:
         self.cfg = json.load(fin)
-        for k,v in self.cfg.items():
-          setattr(self, k, v)
-    except:
-      raise
-    try:
-      if loglevel:
-        self.setloglevel(loglevel)
-      else:
-        self.setloglevel(logging.CRITICAL)
+      for k,v in self.cfg.items():
+        setattr(self, k, v)
+      if not hasattr(self, 'SLACK_BOT_TOKEN'):
+        self.SLACK_BOT_TOKEN = raw_input("Please enter slack bot token: ")
+      if not hasattr(self, 'BOT_ID'):
+        self.BOT_ID = raw_input("Please enter bot id: ")
+      if not hasattr(self, 'READ_WEBSOCKET_DELAY'):
+        self.READ_WEBSOCKET_DELAY = 1
       self.slack_client = SlackClient(self.SLACK_BOT_TOKEN)
       self.slack_client.rtm_connect()
     except:
       raise
+
+  def _parse_exe(self, cmd, args=None):
+    pass
+
+  def _presence_change(self):
+    pass
+
+  def _dispatch(self, message):
+    if message['type'] == 'message':
+      if not 'bot_id' in message.keys() or message['bot_id'] != self.BOT_ID:
+        if 'text' in message.keys():
+          cmd_split = message['text'].split(' ')
+          if cmd_split[0] == '<@' + self.BOT_ID + '>':
+            cmd = cmd_split[1]
+            if len(cmd_split) > 2:
+              args = ', '.join(cmd_split[2:])
+            else:
+              args = None
+          else:
+            cmd = cmd_split[0]
+            if len(cmd_split) > 1:
+              args = ', '.join(cmd_split[1:])
+            else:
+              args = None
+            if cmd in self.bot_commands():
+              try:
+                command = getattr(self.plugins, cmd)
+                if args:
+                  self.logger.debug("Command: %s args: %s" % (cmd, args))
+                  ret = command(filepath=args)
+                else:
+                  self.logger.debug("Command: %s" % cmd)
+                  ret = command()
+                if hasattr(ret, 'binary'):
+                  if ret.binary:
+                    self.logger.debug("path to object: %s" % ret.path)
+                    self.post_message(channel=message['channel'], text=ret.path)
+                  else:
+                    self.post_message(channel=message['channel'], text=ret)
+                else:
+                  self.post_message(channel=message['channel'], text="Unknown response from plugin.")
+              except Exception as e:
+                self.logger.exception(e)
+                raise e
+            else:
+              self.logger.debug("Not a command: %s" % (cmd))
+              self.post_message(channel=message['channel'], text="I didn't understand %s" % cmd)
+    elif message['type'] == 'presence_change' and message['presence'] == 'active':
+      self.logger.debug("%s is now active." % (message['user']))
 
   def __del__(self):
     self._save()
 
   def setloglevel(self, loglevel):
     try:
-      self.logger = logging.getlogger(self.__name__)
       self.logger.setLevel(loglevel)
-      sh = logging.StreamHandler()
-      sh.setLevel(loglevel)
-      formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-      sh.setFormatter(formatter)
-      self.logger.addHandler(sh)
     except:
       raise
 
@@ -58,38 +105,13 @@ class slackbot:
 
   def read(self):
 
-    typing = 0
-
     while True:
       try:
         msg = self.slack_client.rtm_read()
-        if msg:
-          if msg[0]['type'] == 'message':
-            if not 'bot_id' in msg[0].keys() or msg[0]['bot_id'] != self.BOT_ID:
-              if 'text' in msg[0].keys():
-                if msg[0]['text'].split(' ')[0] == '<@' + self.BOT_ID + '>':
-                  cmd=msg[0]['text'].split(' ')[1]
-                else:
-                  cmd=msg[0]['text'].split(' ')[0]
-                  if cmd in self.bot_commands():
-                    try:
-                      command = getattr(self.plugins, cmd)
-                      self.post_message(channel=msg[0]['channel'], text=command())
-                    except Exception as e:
-                      self.logger.debug(str(e))
-                  else:
-                    self.logger.debug("Not a command: %s" % (cmd))
-          elif msg[0]['type'] == 'user_typing':
-            if typing == 3:
-              self.post_message(channel=msg[0]['channel'], text='Shhh... <@'+msg[0]['user']+'> is typing something...')
-              typing=0
-            else:
-              typing+=1
-          elif msg[0]['type'] == 'presence_change' and msg[0]['presence'] == 'active':
-            self.logger.debug("%s is now active." % (msg[0]['user']))
-
+        self.logger.debug("Message: %s" % msg)
+        for message in msg:
+          self._dispatch(message)
         time.sleep(self.READ_WEBSOCKET_DELAY)
-
       except:
         raise
 
@@ -106,3 +128,26 @@ class slackbot:
       return c['channels']
     except:
       raise
+
+def main():
+
+  logger = logging.getLogger('slackbot')
+  sh = logging.FileHandler(filename=os.path.basename(sys.argv[0]).split('.')[0] + '.log')
+  logger.setLevel(logging.DEBUG)
+  sh.setLevel(logging.DEBUG)
+  formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+  sh.setFormatter(formatter)
+  logger.addHandler(sh)
+
+  try:
+    bot = slackbot()
+    bot.read()
+  except Exception as e:
+    logging.exception(e)
+    raise e
+
+if __name__ == '__main__':
+  try:
+      main()
+  except KeyboardInterrupt:
+    sys.exit(0)
