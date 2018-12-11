@@ -4,7 +4,6 @@ import time
 import json
 import logging
 import plugins
-from dbox import dbox
 from slackclient import SlackClient
 
 __package__ = 'slackbot'
