@@ -3,10 +3,11 @@
 import os
 import sys
 import time
-from slackclient import SlackClient
 import json
 import logging
 import plugins
+from dbox import dbox
+from slackclient import SlackClient
 
 __package__ = 'slackbot'
 
@@ -29,8 +30,8 @@ class slackbot:
         self.READ_WEBSOCKET_DELAY = 1
       self.slack_client = SlackClient(self.SLACK_BOT_TOKEN)
       self.slack_client.rtm_connect()
-    except:
-      raise
+    except Exception as e:
+      self.logger.exception(e)
 
   def _parse_exe(self, cmd, args=None):
     pass
@@ -67,7 +68,7 @@ class slackbot:
                 if hasattr(ret, 'binary'):
                   if ret.binary:
                     self.logger.debug("path to object: %s" % ret.path)
-                    self.post_message(channel=message['channel'], text=ret.path)
+                    self.upload(channel=message['channel'], filename=ret.path)
                   else:
                     self.post_message(channel=message['channel'], text=ret)
                 else:
@@ -87,8 +88,8 @@ class slackbot:
   def setloglevel(self, loglevel):
     try:
       self.logger.setLevel(loglevel)
-    except:
-      raise
+    except Exception as e:
+      self.logger.exception(e)
 
   def _save(self):
     config = dict()
@@ -108,26 +109,38 @@ class slackbot:
     while True:
       try:
         msg = self.slack_client.rtm_read()
-        self.logger.debug("Message: %s" % msg)
-        for message in msg:
-          self._dispatch(message)
-        time.sleep(self.READ_WEBSOCKET_DELAY)
-      except:
-        raise
+        if len(msg) > 0:
+          self.logger.debug("Message: %s" % msg)
+          for message in msg:
+            self._dispatch(message)
+          time.sleep(self.READ_WEBSOCKET_DELAY)
+      except Exception as e:
+        self.logger.exception(e)
 
   def post_message(self, channel=None, text=None, attachment=None, as_user=True):
     try:
-      self.slack_client.api_call("chat.postMessage", channel=channel, text=text, attachments=attachment, as_user=as_user)
-    except:
-      raise
+      self.slack_client.api_call('chat.postMessage', channel=channel, text=text, attachments=attachment, as_user=as_user)
+    except Exception as e:
+      self.logger.exception(e)
+
+  def upload(self, channel=None, filename=None):
+    try:
+      name = os.path.basename(filename)
+      with open(filename, 'rb') as fh:
+        resp = self.slack_client.api_call('files.upload', channel=channel, title=name, filename=name, file=fh, as_user=True)
+      self.logger.debug("Response from upload: %s" % resp)
+      self.post_message(channel=channel, text=resp['file']['permalink'], as_user=True)
+      if not resp['ok']:
+        self.logger.debug("Response from upload: %s" % resp['error'])
+    except Exception as e:
+      self.logger.exception(e)
 
   def list_channels(self):
-    c=[]
     try:
       c=self.slack_client.api_call("channels.list")
       return c['channels']
-    except:
-      raise
+    except Exception as e:
+      self.logger.exception(e)
 
 def main():
 
@@ -144,7 +157,6 @@ def main():
     bot.read()
   except Exception as e:
     logging.exception(e)
-    raise e
 
 if __name__ == '__main__':
   try:

@@ -3,6 +3,7 @@ import os
 import logging
 
 sys.path.append(__name__)
+name = "slackbot.plugins"
 __package__ = 'slackbot.plugins'
 
 class plugins:
