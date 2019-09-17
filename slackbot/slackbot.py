@@ -1,4 +1,3 @@
-from time import sleep
 import json
 import logging
 from slack import WebClient,RTMClient
