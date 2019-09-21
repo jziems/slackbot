@@ -1,0 +1,11 @@
+[Unit]
+Description=Slack Bot
+After=network.target
+
+[Service]
+WorkingDirectory=/slackbot
+ExecStart=/bin/bash -c "source /environ/slackbot/bin/activate && /slackbot/main.py"
+User=slackbot
+
+[Install]
+WantedBy=multi-user.target
